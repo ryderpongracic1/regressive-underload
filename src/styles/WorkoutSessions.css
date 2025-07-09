@@ -1,0 +1,36 @@
+/* src/styles/WorkoutSession.css */
+.workout-session-container {
+    padding: 20px;
+}
+
+.session-header {
+    font-size: 1.5rem;
+    font-weight: bold;
+    margin-bottom: 10px;
+}
+
+.session-list {
+    list-style: none;
+    padding: 0;
+}
+
+.session-list li {
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    background-color: #f9f9f9;
+}
+
+.add-workout-button {
+    background-color: #4CAF50;
+    color: white;
+    padding: 10px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+.add-workout-button:hover {
+    background-color: #45a049;
+}

@@ -1,0 +1,120 @@
+.calendar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 800px;
+  margin: 20px auto;
+}
+
+.month-header {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  width: 100%;
+  text-align: center;
+  font-weight: bold;
+  margin-bottom: 10px;
+}
+
+.weekday {
+  padding: 8px 0;
+}
+
+.calendar-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.week {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 8px;
+}
+
+.day-box {
+  background: #f3f3f3;
+  text-align: center;
+  padding: 20px 15px;
+  border-radius: 8px;
+  font-size: 18px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: 0.3s ease;
+  min-width: 60px; 
+  min-height: 80px;
+  border: none; 
+  outline: none;
+}
+
+.day-box:hover {
+  background: #d4d4d4;
+}
+
+.day-box:focus {
+  outline: 2px solid #007BFF;
+}
+
+.empty-box {
+  min-width: 60px;
+  min-height: 80px;
+  visibility: hidden;
+}
+
+/* Each "session label" appears under the day number. */
+.workout-label {
+  margin-top: 8px;
+  font-size: 14px;
+  background-color: #ddd;
+  padding: 4px 6px;
+  border-radius: 4px;
+  font-weight: normal;
+}
+
+/* Modal */
+.modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: white;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  /* Adjust width as needed, maybe make it slightly wider for the form */
+  width: 450px; 
+  max-width: 90%; /* Ensure it's responsive */
+}
+
+.modal-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-height: 85vh; /* Limit the height of the content area */
+  overflow-y: auto; /* Allow this area to scroll if content overflows */
+  width: 100%;     /* Ensure it uses the modal's width */
+}
+
+.modal button {
+  background: #ff5c5c;
+  color: white;
+  padding: 10px 15px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: 0.3s ease;
+  margin-top: 10px;
+}
+
+.modal button:hover {
+  background: #d9534f;
+}
