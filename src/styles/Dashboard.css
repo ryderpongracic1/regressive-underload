@@ -1,10 +1,38 @@
+/* src/styles/Dashboard.css */
+.dashboard {
+  padding-bottom: 20px;
+}
+
+.search-container {
+  display: flex;
+  justify-content: center;
+  margin: 0 auto 20px auto;
+  max-width: 600px;
+}
+
+.search-input {
+  width: 100%;
+  padding: 12px 15px;
+  font-size: 1rem;
+  border-radius: 25px;
+  border: 1px solid #ddd;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+  outline: none;
+}
+
+.search-input:focus {
+  border-color: #007BFF;
+  box-shadow: 0 0 8px rgba(0, 123, 255, 0.2);
+}
+
 .calendar {
   display: flex;
   flex-direction: column;
   align-items: center;
   width: 100%;
-  max-width: 800px;
+  max-width: 900px;
   margin: 20px auto;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
 }
 
 .month-header {
@@ -12,7 +40,27 @@
   justify-content: space-between;
   width: 100%;
   align-items: center;
-  margin-bottom: 10px;
+  margin-bottom: 15px;
+}
+
+.month-header h2 {
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.month-header button {
+  background: #f0f0f0;
+  border: 1px solid #ddd;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  font-size: 1.2rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.month-header button:hover {
+  background: #e0e0e0;
 }
 
 .weekdays {
@@ -20,8 +68,9 @@
   grid-template-columns: repeat(7, 1fr);
   width: 100%;
   text-align: center;
-  font-weight: bold;
+  font-weight: 600;
   margin-bottom: 10px;
+  color: #666;
 }
 
 .weekday {
@@ -42,79 +91,132 @@
 }
 
 .day-box {
-  background: #f3f3f3;
-  text-align: center;
-  padding: 20px 15px;
+  background: #f9f9f9;
+  text-align: left; /* Align day number to top-left */
+  padding: 8px;
   border-radius: 8px;
-  font-size: 18px;
-  font-weight: bold;
+  font-size: 1rem;
+  font-weight: 600;
   cursor: pointer;
-  transition: 0.3s ease;
-  min-width: 60px; 
-  min-height: 80px;
-  border: none; 
-  outline: none;
+  transition: all 0.3s ease;
+  min-height: 100px;
+  border: 1px solid #eee;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
 }
 
 .day-box:hover {
-  background: #d4d4d4;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
 }
 
 .day-box:focus {
   outline: 2px solid #007BFF;
 }
 
+/* Style for days with workouts */
+.day-with-workout {
+  background-color: #e8f5e9; /* Light green */
+  border: 1px solid #a5d6a7;
+}
+
+/* Style for rest days */
+.rest-day {
+  background-color: #e3f2fd; /* Light blue */
+  border: 1px solid #90caf9;
+}
+
+/* Style for dimmed days during search - INCREASED SPECIFICITY */
+.calendar-grid .day-box.dimmed-day {
+  opacity: 0.4;
+  filter: grayscale(80%);
+  pointer-events: none; /* Prevent clicking on dimmed days */
+  transform: none; /* Disable hover effect */
+  box-shadow: none; /* Disable hover effect */
+}
+
+/* Style for highlighted days during search - INCREASED SPECIFICITY */
+.calendar-grid .day-box.highlighted-day {
+  opacity: 1;
+  transform: scale(1.05);
+  box-shadow: 0 0 12px rgba(0, 123, 255, 0.6);
+  border: 2px solid #007BFF;
+  filter: grayscale(0);
+}
+
+
 .empty-box {
   min-width: 60px;
-  min-height: 80px;
+  min-height: 100px;
   visibility: hidden;
 }
 
-/* Each "session label" appears under the day number. */
 .workout-label {
-  margin-top: 8px;
-  font-size: 14px;
-  background-color: #ddd;
-  padding: 4px 6px;
+  margin-top: 5px;
+  font-size: 0.75rem;
+  background-color: #a5d6a7;
+  color: #1b5e20;
+  padding: 3px 6px;
   border-radius: 4px;
-  font-weight: normal;
+  font-weight: 500;
+  align-self: flex-start;
+}
+
+.rest-day-label {
+  background-color: #90caf9;
+  color: #0d47a1;
 }
 
 /* Modal */
 .modal {
   position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  background: white;
-  padding: 20px;
-  border-radius: 12px;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-  /* Adjust width as needed, maybe make it slightly wider for the form */
-  width: 450px; 
-  max-width: 90%; /* Ensure it's responsive */
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
 }
 
 .modal-content {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  max-height: 85vh; /* Limit the height of the content area */
-  overflow-y: auto; /* Allow this area to scroll if content overflows */
-  width: 100%;     /* Ensure it uses the modal's width */
+  background: white;
+  padding: 25px;
+  border-radius: 12px;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+  width: 500px; 
+  max-width: 95%;
+  max-height: 90vh;
+  overflow-y: auto;
 }
 
-.modal button {
-  background: #ff5c5c;
-  color: white;
+.modal-content h3 {
+  margin-top: 0;
+  text-align: center;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid #eee;
+}
+
+.modal-actions button {
+  background: #f0f0f0;
+  color: #333;
   padding: 10px 15px;
-  border: none;
+  border: 1px solid #ccc;
   border-radius: 6px;
   cursor: pointer;
   transition: 0.3s ease;
-  margin-top: 10px;
 }
 
-.modal button:hover {
-  background: #d9534f;
+.modal-actions button:hover {
+  background: #e0e0e0;
 }

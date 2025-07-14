@@ -1,0 +1,47 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Sessions rules
+    match /sessions/{sessionId} {
+      function isOwner() {
+        let parts = sessionId.split('_');
+        return request.auth != null && parts.size() >= 2 && request.auth.uid == parts[0];
+      }
+      allow read: if request.auth != null && (resource == null || resource.data.userId == request.auth.uid);
+      allow write: if isOwner() && request.resource.data.userId == request.auth.uid;
+    }
+
+    // User Exercises rules
+    match /userExercises/{exerciseId} {
+      allow read: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+    }
+
+    // User Rest Days rules
+    match /userRestDays/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // User Favorites rules
+    match /userFavorites/{userId} {
+      allow read, create, update: if request.auth != null && request.auth.uid == userId;
+      allow delete: if false;
+    }
+
+    // --- NEW RULES START HERE ---
+
+    // Rules for user profile data (bio, etc.)
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Rules for user-specific settings (dark mode, reminders)
+    match /userSettings/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // --- NEW RULES END HERE ---
+  }
+}

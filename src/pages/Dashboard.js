@@ -1,96 +1,185 @@
 // src/pages/Dashboard.js
-import React, { useEffect, useState } from "react";
-// Remove db import if only used for fetch/save within WorkoutSession
-// Keep auth import if needed for onAuthStateChanged
-import { auth } from "../firebaseConfig";
-import { onAuthStateChanged } from "firebase/auth"; // Remove signOut import
+import React, { useEffect, useState, useCallback } from "react";
+import { auth, db } from "../firebaseConfig";
+import { onAuthStateChanged } from "firebase/auth";
+import { collection, query, where, getDocs, doc, getDoc, setDoc } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
-import { collection, query, where, getDocs, orderBy } from "firebase/firestore";
-import { db } from "../firebaseConfig"; // Keep db if fetchSessions remains here
 import WorkoutSession from "../components/WorkoutSession";
-import "../styles/Dashboard.css";
-// Import the Navbar
 import Navbar from "../components/Navbar";
+import "../styles/Dashboard.css";
 
 function Dashboard() {
   const [user, setUser] = useState(null);
   const [sessionsByDocId, setSessionsByDocId] = useState({});
+  const [restDays, setRestDays] = useState(new Set());
   const [selectedDate, setSelectedDate] = useState(null);
   const [showModal, setShowModal] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [highlightedDates, setHighlightedDates] = useState(new Set());
   const today = new Date();
   const [currentMonth, setCurrentMonth] = useState(today.getMonth());
   const [currentYear, setCurrentYear] = useState(today.getFullYear());
   const navigate = useNavigate();
 
   const formatDate = (date) => {
-    const year = date.getFullYear();
-    const month = ('0' + (date.getMonth() + 1)).slice(-2);
-    const day = ('0' + date.getDate()).slice(-2);
+    const d = new Date(date);
+    const year = d.getFullYear();
+    const month = `0${d.getMonth() + 1}`.slice(-2);
+    const day = `0${d.getDate()}`.slice(-2);
     return `${year}-${month}-${day}`;
   };
 
- useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (usr) => {
-      if (usr) {
-        setUser(usr);
-        console.log(`onAuthStateChanged: User authenticated with UID='${usr.uid}'`);
-        fetchSessions(usr.uid);
+  const fetchDashboardData = useCallback(async (userId) => {
+    if (!userId) {
+      setLoading(false);
+      return;
+    }
+    try {
+      // Fetch sessions
+      const sessionsRef = collection(db, "sessions");
+      const q = query(sessionsRef, where("userId", "==", userId));
+      const sessionsSnapshot = await getDocs(q);
+      const sessionsMap = {};
+      sessionsSnapshot.forEach((docSnap) => {
+        sessionsMap[docSnap.id] = docSnap.data();
+      });
+      setSessionsByDocId(sessionsMap);
+
+      // Fetch rest days
+      const restDaysRef = doc(db, "userRestDays", userId);
+      const restDaysSnap = await getDoc(restDaysRef);
+      if (restDaysSnap.exists()) {
+        setRestDays(new Set(restDaysSnap.data().dates || []));
       } else {
-        // Redirect to login if user is not authenticated
+        setRestDays(new Set());
+      }
+    } catch (error) {
+      console.error("Failed to fetch dashboard data:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      if (currentUser) {
+        setUser(currentUser);
+        fetchDashboardData(currentUser.uid);
+      } else {
+        setLoading(false);
         navigate("/login");
       }
     });
-    // Cleanup subscription on unmount
     return () => unsubscribe();
-     // Assuming navigate is stable, but check React exhaustive-deps lint rule
-  }, [navigate]);
+  }, [navigate, fetchDashboardData]);
 
+  // Effect for handling search filtering
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setHighlightedDates(new Set());
+      return;
+    }
+    const newHighlightedDates = new Set();
+    const lowerCaseQuery = searchQuery.toLowerCase();
+    for (const docId in sessionsByDocId) {
+      const sessionDoc = sessionsByDocId[docId];
+      let matchFound = false;
+      if (sessionDoc.sessions && Array.isArray(sessionDoc.sessions)) {
+        for (const sess of sessionDoc.sessions) {
+          if (sess.label.toLowerCase().includes(lowerCaseQuery)) {
+            matchFound = true;
+            break;
+          }
+          if (sess.exercises && Array.isArray(sess.exercises)) {
+            for (const ex of sess.exercises) {
+              if (ex.name.toLowerCase().includes(lowerCaseQuery)) {
+                matchFound = true;
+                break;
+              }
+            }
+          }
+          if (matchFound) break;
+        }
+      }
+      if (matchFound) {
+        newHighlightedDates.add(sessionDoc.date);
+      }
+    }
+    if ('rest days'.includes(lowerCaseQuery)) {
+      restDays.forEach(date => newHighlightedDates.add(date));
+    }
 
-  const fetchSessions = async (userId) => {
-     console.log(`WorkspaceSessions: Querying with userId='${userId}'`);
-     if (!userId) {
-        console.log("Fetch aborted: No user ID provided.");
-        return;
-     }
-     const sessionsRef = collection(db, "sessions");
-     // Query requires index on userId (asc) and date (asc)
-     const q = query(sessionsRef, where("userId", "==", userId), orderBy("date", "asc"));
+    setHighlightedDates(newHighlightedDates);
+  }, [searchQuery, sessionsByDocId, restDays]); 
 
-     try {
-       const querySnapshot = await getDocs(q);
-       let dataMap = {};
-       querySnapshot.forEach((docSnap) => {
-         console.log("Fetched doc ID:", docSnap.id, "Data:", docSnap.data());
-         console.log(`WorkspaceSessions: Fetched doc ${docSnap.id} contains userId='${docSnap.data().userId}'`);
-         dataMap[docSnap.id] = docSnap.data();
-       });
-       console.log("Setting sessionsByDocId state with:", dataMap);
-       setSessionsByDocId(dataMap);
-     } catch (error) {
-       console.error("Error fetching sessions from Firestore:", error);
-       // Avoid alert for index errors now, maybe just log or set an error state
-       // alert(`Error fetching workouts: ${error.message}`);
-     }
+  const toggleRestDay = async (isoDate) => {
+    if (!user) return;
+
+    const docId = `${user.uid}_${isoDate}`;
+    if (!restDays.has(isoDate) && sessionsByDocId[docId]?.sessions?.length > 0) {
+      alert("Cannot mark a day with logged workouts as a rest day.");
+      return;
+    }
+
+    // --- Optimistic Update ---
+    // 1. Keep a copy of the original state to revert on error
+    const originalRestDays = new Set(restDays);
+    const newRestDays = new Set(originalRestDays);
+
+    if (newRestDays.has(isoDate)) {
+      newRestDays.delete(isoDate);
+    } else {
+      newRestDays.add(isoDate);
+    }
+
+    // 2. Update the UI immediately for instant feedback
+    setRestDays(newRestDays);
+    // --- End of Optimistic Update ---
+
+    try {
+      // 3. Attempt to save the change to Firestore
+      const restDaysRef = doc(db, "userRestDays", user.uid);
+      await setDoc(restDaysRef, { dates: Array.from(newRestDays) });
+    } catch (error) {
+      console.error("Error saving rest days:", error);
+      // 4. If the save fails, revert the UI to its original state
+      setRestDays(originalRestDays);
+      alert("Failed to update rest day. Please check your connection and try again.");
+    }
   };
 
-
-  const updateSessionsForDate = (isoDate, newSessions) => {
+  const updateSessionsForDate = async (isoDate, newSessions) => {
     if (!user?.uid) return;
     const docId = `${user.uid}_${isoDate}`;
-    setSessionsByDocId((prev) => {
-      let updated = { ...prev };
-      updated[docId] = {
-        ...(updated[docId] || {}),
-        userId: user.uid,
-        date: isoDate,
-        sessions: newSessions,
-      };
-      return updated;
-    });
-  };
+    
+    const newSessionData = {
+      userId: user.uid,
+      date: isoDate,
+      sessions: newSessions,
+    };
 
-  // Remove the old handleLogout function - it's now in Navbar.js
-  // const handleLogout = async () => { ... };
+    try {
+        const sessionDocRef = doc(db, "sessions", docId);
+        await setDoc(sessionDocRef, newSessionData, { merge: true });
+
+        setSessionsByDocId((prev) => ({
+            ...prev,
+            [docId]: newSessionData,
+        }));
+    
+        if (restDays.has(isoDate)) {
+            const newRestDays = new Set(restDays);
+            newRestDays.delete(isoDate);
+            const restDaysRef = doc(db, "userRestDays", user.uid);
+            await setDoc(restDaysRef, { dates: Array.from(newRestDays) });
+            setRestDays(newRestDays);
+        }
+    } catch (error) {
+        console.error("Error updating session or rest day:", error);
+        alert("Failed to save workout session. Please try again.");
+    }
+  };
 
   const handleDateClick = (day) => {
     if (day) {
@@ -99,38 +188,33 @@ function Dashboard() {
     }
   };
 
- const handleCloseModal = () => {
+  const handleCloseModal = () => {
     setShowModal(false);
     setSelectedDate(null);
-    // Keep the refetch here if desired, or rely on Navbar navigation
-    if (user) {
-        fetchSessions(user.uid);
-    }
- };
-
+  };
 
   const handlePrevMonth = () => {
     if (currentMonth === 0) {
       setCurrentMonth(11);
-      setCurrentYear((prev) => prev - 1);
+      setCurrentYear(currentYear - 1);
     } else {
-      setCurrentMonth((prev) => prev - 1);
+      setCurrentMonth(currentMonth - 1);
     }
   };
 
   const handleNextMonth = () => {
     if (currentMonth === 11) {
       setCurrentMonth(0);
-      setCurrentYear((prev) => prev + 1);
+      setCurrentYear(currentYear + 1);
     } else {
-      setCurrentMonth((prev) => prev + 1);
+      setCurrentMonth(currentMonth + 1);
     }
   };
 
-   const renderCalendar = () => {
+  const renderCalendar = () => {
     const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
     const firstDay = new Date(currentYear, currentMonth, 1).getDay();
-    const adjustedFirstDay = (firstDay + 6) % 7;
+    const adjustedFirstDay = (firstDay === 0) ? 6 : firstDay - 1;
     let weeks = [[]];
     let currentWeekIndex = 0;
 
@@ -139,61 +223,55 @@ function Dashboard() {
     }
 
     for (let day = 1; day <= daysInMonth; day++) {
-      weeks[currentWeekIndex].push(day);
       if (weeks[currentWeekIndex].length === 7) {
         weeks.push([]);
         currentWeekIndex++;
       }
+      weeks[currentWeekIndex].push(day);
     }
 
     return (
       <div className="calendar">
         <div className="month-header">
           <button onClick={handlePrevMonth}>❮</button>
-          <h2>
-            {new Date(currentYear, currentMonth).toLocaleString("default", {
-              month: "long",
-              year: "numeric",
-            })}
-          </h2>
+          <h2>{new Date(currentYear, currentMonth).toLocaleString("default", { month: "long", year: "numeric" })}</h2>
           <button onClick={handleNextMonth}>❯</button>
         </div>
-
         <div className="weekdays">
-           {/* Corrected key usage */}
-           {["M", "T", "W", "T", "F", "S", "S"].map((d, index) => (
-             <div key={index} className="weekday">{d}</div>
-           ))}
+          {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map(d => <div key={d} className="weekday">{d}</div>)}
         </div>
-
-
         <div className="calendar-grid">
           {weeks.map((week, i) => (
             <div key={i} className="week">
               {week.map((day, j) => {
-                if (!day) {
-                  return <div key={j} className="empty-box" />;
-                }
+                if (!day) return <div key={j} className="empty-box" />;
+                
                 const dateObj = new Date(currentYear, currentMonth, day);
                 const isoDate = formatDate(dateObj);
-                 // Ensure user state is available before constructing docId
-                 const docId = user ? `${user.uid}_${isoDate}` : `noUser_${isoDate}`;
-                const sessionDoc = sessionsByDocId[docId];
-                const sessionList = sessionDoc?.sessions || [];
+                const docId = user ? `${user.uid}_${isoDate}` : null;
+                const hasWorkout = docId ? sessionsByDocId[docId]?.sessions?.length > 0 : false;
+                const isRestDay = restDays.has(isoDate);
+                const isSearching = searchQuery.trim().length > 0;
+
+                let dayClass = "day-box";
+                if (hasWorkout) dayClass += " day-with-workout";
+                if (isRestDay) dayClass += " rest-day";
+                
+                if (isSearching) {
+                  if (highlightedDates.has(isoDate)) {
+                    dayClass += " highlighted-day";
+                  } else {
+                    dayClass += " dimmed-day";
+                  }
+                }
 
                 return (
-                  <button
-                    key={j}
-                    type="button"
-                    className="day-box"
-                    onClick={() => handleDateClick(day)}
-                  >
-                    {day}
-                    {sessionList.map((sess, idx) => (
-                      <div key={idx} className="workout-label">
-                        {sess.label}
-                      </div>
+                  <button key={j} type="button" className={dayClass} onClick={() => handleDateClick(day)}>
+                    <span>{day}</span>
+                    {hasWorkout && sessionsByDocId[docId].sessions.map((sess, idx) => (
+                      <div key={idx} className="workout-label">{sess.label}</div>
                     ))}
+                    {isRestDay && !hasWorkout && <div className="workout-label rest-day-label">Rest</div>}
                   </button>
                 );
               })}
@@ -204,34 +282,49 @@ function Dashboard() {
     );
   };
 
-
-  // Ensure user is loaded before rendering dashboard content
-  if (!user) {
-     return <div>Loading...</div>; // Or a spinner component
+  if (loading) {
+    return <div><Navbar /><div className="loading-container"><p>Loading Dashboard...</p></div></div>;
   }
 
+  const selectedIsoDate = selectedDate ? formatDate(selectedDate) : null;
+  const isSelectedRestDay = selectedIsoDate ? restDays.has(selectedIsoDate) : false;
 
   return (
     <div className="dashboard">
-      {/* Add the Navbar here */}
       <Navbar />
-
-      {/* Remove the old logout button */}
-      {/* <button onClick={handleLogout}>Logout</button> */}
-
+      <div className="search-container">
+        <input
+          type="text"
+          className="search-input"
+          placeholder="Search workouts by session or exercise..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+        />
+      </div>
       {renderCalendar()}
-
       {showModal && selectedDate && (
         <div className="modal">
           <div className="modal-content">
-             {/* Ensure user.uid is passed */}
-            <h3>Workout for {selectedDate.toDateString()}</h3>
-            <WorkoutSession
-              userId={user.uid}
-              date={formatDate(selectedDate)}
-              onSessionsChange={updateSessionsForDate}
-            />
-            <button onClick={handleCloseModal}>Close</button>
+            <span className="close-button" onClick={handleCloseModal}>&times;</span>
+            <h3>{isSelectedRestDay ? "Rest Day" : `Workout for ${selectedDate.toDateString()}`}</h3>
+            
+            {isSelectedRestDay ? (
+              <p>This day is marked as a rest day.</p>
+            ) : (
+              <WorkoutSession
+                userId={user.uid}
+                date={selectedIsoDate}
+                initialSessions={sessionsByDocId[`${user.uid}_${selectedIsoDate}`]?.sessions || []}
+                onSessionsChange={updateSessionsForDate}
+              />
+            )}
+            
+            <div className="modal-actions">
+              <button onClick={() => toggleRestDay(selectedIsoDate)}>
+                {isSelectedRestDay ? "Unmark as Rest Day" : "Mark as Rest Day"}
+              </button>
+              <button onClick={handleCloseModal}>Close</button>
+            </div>
           </div>
         </div>
       )}
