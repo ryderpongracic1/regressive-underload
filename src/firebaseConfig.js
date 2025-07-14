@@ -4,7 +4,7 @@ import { getFirestore } from "firebase/firestore";  // Import Firestore
 import { getStorage } from "firebase/storage"; // Import Storage if needed
 
 const firebaseConfig = {
-  apiKey: "AIzaSyB8lVgglOn82R9w0XiCEvzWvdN9sGSrR34",
+  apiKey: "######",
   authDomain: "regressive-underload.firebaseapp.com",
   projectId: "regressive-underload",
   storageBucket: "regressive-underload.appspot.com",
