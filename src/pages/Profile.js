@@ -80,6 +80,58 @@ function Profile() {
     }
   };
 
+  const handleRemovePFP = async () => {
+    if (!user) return;
+
+    // Optimistically update the UI
+    setAvatarPreview('/default.png'); 
+    setAvatar(null);
+
+    try {
+        await updateProfile(user, { photoURL: "" });
+        const userDocRef = doc(db, 'users', user.uid);
+        await setDoc(userDocRef, { photoURL: "" }, { merge: true });
+        
+        // Reload user to get the latest profile info
+        await auth.currentUser.reload();
+        setUser(auth.currentUser);
+
+    } catch (error) {
+        console.error("Error removing profile picture:", error);
+        // Revert UI on error
+        setAvatarPreview(user.photoURL || '/default.png');
+    }
+  };
+
+  const handleDarkModeChange = async (newDarkMode) => {
+    setDarkMode(newDarkMode);
+    if (user) {
+        try {
+            const settingsRef = doc(db, 'userSettings', user.uid);
+            await setDoc(settingsRef, { darkMode: newDarkMode }, { merge: true });
+        } catch (error) {
+            console.error("Error saving dark mode setting:", error);
+            // Optionally, revert the UI change and show an error message
+            setDarkMode(!newDarkMode);
+        }
+    }
+  };
+
+  const handleRemindersChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    const newReminders = { ...reminders, [name]: type === 'checkbox' ? checked : value };
+    setReminders(newReminders);
+    if (user) {
+        try {
+            const settingsRef = doc(db, 'userSettings', user.uid);
+            setDoc(settingsRef, { reminders: newReminders }, { merge: true });
+        } catch (error) {
+            console.error("Error saving reminders setting:", error);
+            // Optionally, revert the UI change and show an error message
+        }
+    }
+  };
+
   const handleSave = async () => {
     if (!user) return;
     setIsSaving(true);
@@ -103,10 +155,6 @@ function Profile() {
       // 3. Update Firestore profile document
       setMessage('Saving details...');
       await setDoc(doc(db, 'users', user.uid), { bio, photoURL }, { merge: true });
-      
-      // 4. Update Firestore settings document
-      setMessage('Saving settings...');
-      await setDoc(doc(db, 'userSettings', user.uid), { darkMode, reminders }, { merge: true });
 
       setMessage('Profile updated successfully!');
       await auth.currentUser.reload();
@@ -119,11 +167,6 @@ function Profile() {
       setIsSaving(false);
       setTimeout(() => setMessage(''), 5000); // Keep message on screen longer
     }
-  };
-
-  const handleReminderChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setReminders(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
   };
 
   if (loading) {
@@ -156,6 +199,7 @@ function Profile() {
               <img src={avatarPreview} alt="Avatar" className="avatar-preview" />
               <label htmlFor="avatar-upload" className="avatar-upload-label">Change Avatar</label>
               <input id="avatar-upload" type="file" onChange={handleAvatarChange} accept="image/*" disabled={isSaving} />
+              <button onClick={handleRemovePFP} className="remove-pfp-button" disabled={isSaving}>Remove PFP</button>
             </div>
             <div className="form-group">
               <label htmlFor="displayName">Display Name</label>
@@ -171,14 +215,14 @@ function Profile() {
             <div className="setting-item">
               <label htmlFor="darkMode">Dark Mode</label>
               <label className="switch">
-                <input id="darkMode" type="checkbox" checked={darkMode} onChange={() => setDarkMode(!darkMode)} />
+                <input id="darkMode" type="checkbox" checked={darkMode} onChange={(e) => handleDarkModeChange(e.target.checked)} />
                 <span className="slider round"></span>
               </label>
             </div>
             <div className="setting-item">
               <label htmlFor="remindersEnabled">Email Reminders</label>
               <label className="switch">
-                <input id="remindersEnabled" name="enabled" type="checkbox" checked={reminders.enabled} onChange={handleReminderChange} />
+                <input id="remindersEnabled" name="enabled" type="checkbox" checked={reminders.enabled} onChange={handleRemindersChange} />
                 <span className="slider round"></span>
               </label>
             </div>
@@ -186,16 +230,16 @@ function Profile() {
               <div className="reminder-options">
                 <div className="form-group">
                   <label htmlFor="frequency">Remind me every</label>
-                  <input id="frequency" name="frequency" type="number" value={reminders.frequency} onChange={handleReminderChange} min="1" />
+                  <input id="frequency" name="frequency" type="number" value={reminders.frequency} onChange={handleRemindersChange} min="1" />
                   <span>days</span>
                 </div>
                 <div className="form-group">
                   <label htmlFor="label">Email Subject</label>
-                  <input id="label" name="label" type="text" value={reminders.label} onChange={handleReminderChange} />
+                  <input id="label" name="label" type="text" value={reminders.label} onChange={handleRemindersChange} />
                 </div>
                 <div className="form-group">
                   <label htmlFor="message">Inspirational Message</label>
-                  <textarea id="message" name="message" value={reminders.message} onChange={handleReminderChange} rows="3"></textarea>
+                  <textarea id="message" name="message" value={reminders.message} onChange={handleRemindersChange} rows="3"></textarea>
                 </div>
               </div>
             )}

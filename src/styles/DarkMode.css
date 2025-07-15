@@ -1,0 +1,67 @@
+/* src/styles/DarkMode.css */
+/* These are the global rules for your dark theme */
+
+body.dark-mode {
+    background-color: #121212;
+    color: #e0e0e0;
+}
+
+/* --- App-wide Components --- */
+
+/* Navbar - Overrides inline styles */
+body.dark-mode nav {
+    background-color: #1e1e1e !important;
+    border-bottom: 1px solid #333 !important;
+}
+
+body.dark-mode nav a {
+    color: #e0e0e0 !important;
+}
+
+/* General Card style */
+body.dark-mode .card {
+    background-color: #1e1e1e;
+    border: 1px solid #333;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+/* General Headers */
+body.dark-mode h1,
+body.dark-mode h2,
+body.dark-mode h3 {
+    color: #ffffff;
+}
+
+/* General Form elements */
+body.dark-mode label {
+    color: #bbbbbb;
+}
+
+body.dark-mode input[type="text"],
+body.dark-mode input[type="number"],
+body.dark-mode textarea {
+    background-color: #333;
+    border-color: #555;
+    color: #e0e0e0;
+}
+
+/* General Modal styles */
+body.dark-mode .modal-content {
+  background-color: #2a2a2a;
+  color: #e0e0e0;
+  border: 1px solid #444;
+}
+
+body.dark-mode .modal-content .close-button {
+  color: #ccc;
+}
+
+body.dark-mode .modal-content .close-button:hover {
+  color: #fff;
+}
+
+body.dark-mode .modal-actions button {
+  background-color: #333;
+  border-color: #555;
+  color: #e0e0e0;
+}

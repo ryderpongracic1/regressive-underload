@@ -9,11 +9,13 @@ import Statistics from './pages/Statistics';
 import Profile from './pages/Profile';
 import Social from './pages/Social';
 import './styles/App.css';
-import { auth, db } from './firebaseConfig'; // Import auth and db
+import './styles/DarkMode.css'; // <-- ADD THIS LINE
+import { auth, db } from './firebaseConfig';
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 
 function App() {
+  // ... (the rest of your App.js code remains the same)
   // Effect to manage dark mode based on user settings in Firestore
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -50,7 +52,7 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
           <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/statistics" element={<Statistics />} />
+          <Route path="/stats" element={<Statistics />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/social" element={<Social />} />
         </Routes>

@@ -1,7 +1,7 @@
 /* src/styles/Profile.css */
 
-/* Dark Mode Theme */
-body.dark-mode {
+/* Dark Mode Theme - Now scoped to the profile container */
+body.dark-mode .profile-container {
     background-color: #121212;
     color: #e0e0e0;
 }
@@ -10,34 +10,27 @@ body.dark-mode .profile-container h1 {
     color: #ffffff;
 }
 
-body.dark-mode .card {
+body.dark-mode .profile-container .card {
     background-color: #1e1e1e;
     border-color: #333;
 }
 
-body.dark-mode .card h2 {
+body.dark-mode .profile-container .card h2 {
     color: #ffffff;
 }
 
-body.dark-mode .form-group label {
+body.dark-mode .profile-container .form-group label {
     color: #bbbbbb;
 }
 
-body.dark-mode .form-group input,
-body.dark-mode .form-group textarea {
+body.dark-mode .profile-container .form-group input,
+body.dark-mode .profile-container .form-group textarea {
     background-color: #333;
     border-color: #555;
     color: #e0e0e0;
 }
 
-body.dark-mode .navbar { /* Assuming your Navbar has this class */
-    background-color: #1e1e1e !important;
-    border-bottom-color: #333 !important;
-}
-
-body.dark-mode .navbar a {
-    color: #e0e0e0 !important;
-}
+/* --- Rest of your Profile.css file --- */
 
 .profile-container {
     max-width: 900px;
@@ -90,6 +83,14 @@ body.dark-mode .navbar a {
     display: none;
 }
 
+.avatar-buttons {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    margin-top: 10px;
+}
+
 .avatar-upload-label {
     background-color: #007bff;
     color: white;
@@ -97,6 +98,27 @@ body.dark-mode .navbar a {
     border-radius: 5px;
     cursor: pointer;
     text-align: center;
+}
+
+.remove-avatar-button {
+    background-color: #6c757d; /* A neutral gray color */
+    color: white;
+    padding: 8px 15px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    text-align: center;
+    font-size: 0.9rem;
+    transition: background-color 0.2s;
+}
+
+.remove-avatar-button:hover:not(:disabled) {
+    background-color: #5a6268;
+}
+
+.remove-avatar-button:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
 }
 
 .form-group {
@@ -228,4 +250,20 @@ input:checked + .slider:before {
     .profile-grid {
         grid-template-columns: 1fr;
     }
+}
+.remove-pfp-button {
+    background-color: #dc3545;
+    color: white;
+    padding: 8px 15px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    text-align: center;
+    margin-top: 10px;
+    width: 150px; /* Or adjust as needed */
+    align-self: center; /* To center it in the flex container */
+}
+
+.remove-pfp-button:hover {
+    background-color: #c82333;
 }
