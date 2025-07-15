@@ -1,51 +1,203 @@
-import React from "react";
-import Navbar from "../components/Navbar.js";
+// src/pages/Social.js
+import React, { useState, useEffect } from 'react';
+import { auth, db } from '../firebaseConfig';
+import { collection, addDoc, query, where, orderBy, onSnapshot, serverTimestamp, doc, runTransaction } from 'firebase/firestore';
+import Navbar from '../components/Navbar.js';
+import '../styles/Social.css';
 
-const mockUsers = [
-  { id: 1, name: "John Doe", avatar: "https://placehold.co/60x60 ", workouts: 5 },
-  { id: 2, name: "Jane Smith", avatar: "https://placehold.co/60x60 ", workouts: 3 },
-  { id: 3, name: "Alex Johnson", avatar: "https://placehold.co/60x60 ", workouts: 7 },
-];
+const forums = {
+  'gym': { name: 'Gym Related', description: 'Discuss workouts, nutrition, and progress.' },
+  'unrelated': { name: 'Unrelated', description: 'Talk about anything else on your mind.' }
+};
 
 function Social() {
-  return (
-    <div className="min-h-screen bg-gray-900 text-white font-sans">
-      {/* Navbar */}
-      <Navbar />
+  const [view, setView] = useState('index'); // 'index', 'forum', 'thread'
+  const [selectedForum, setSelectedForum] = useState(null);
+  const [selectedThread, setSelectedThread] = useState(null);
+  const [threads, setThreads] = useState([]);
+  const [replies, setReplies] = useState([]);
+  const [newThreadData, setNewThreadData] = useState({ title: '', content: '' });
+  const [newReplyContent, setNewReplyContent] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [showCreate, setShowCreate] = useState(false);
+  const user = auth.currentUser;
 
-      {/* Main Content */}
-      <main className="p-6">
-        {/* Header */}
-        <header className="mb-8">
-          <h1 className="text-3xl font-bold text-center">Social Feed</h1>
-          <p className="text-gray-400 text-center mt-2">Connect with other fitness enthusiasts</p>
-        </header>
+  // Fetch threads when a forum is selected
+  useEffect(() => {
+    if (view !== 'forum' || !selectedForum) return;
+    
+    setLoading(true);
+    const threadsQuery = query(
+      collection(db, 'threads'),
+      where('forumId', '==', selectedForum),
+      orderBy('timestamp', 'desc')
+    );
+    const unsubscribe = onSnapshot(threadsQuery, (snapshot) => {
+      setThreads(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      setLoading(false);
+    }, (error) => {
+      console.error("Error fetching threads:", error);
+      setLoading(false);
+    });
+    return () => unsubscribe();
+  }, [view, selectedForum]);
 
-        {/* User List */}
-        <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {mockUsers.map((user) => (
-            <div
-              key={user.id}
-              className="bg-gray-800 rounded-lg p-4 flex items-center space-x-4 hover:bg-gray-700 transition-colors"
-            >
-              {/* Avatar */}
-              <img
-                src={user.avatar}
-                alt={`${user.name}'s avatar`}
-                className="w-12 h-12 rounded-full object-cover"
-              />
-              {/* Details */}
-              <div>
-                <h3 className="text-lg font-medium">{user.name}</h3>
-                <p className="text-sm text-gray-400">{user.workouts} workouts this week</p>
+  // Fetch replies when a thread is selected
+  useEffect(() => {
+    if (view !== 'thread' || !selectedThread) return;
+    
+    setLoading(true);
+    const repliesQuery = query(
+      collection(db, `threads/${selectedThread.id}/replies`),
+      orderBy('timestamp', 'asc')
+    );
+    const unsubscribe = onSnapshot(repliesQuery, (snapshot) => {
+      setReplies(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      setLoading(false);
+    }, (error) => {
+      console.error("Error fetching replies:", error);
+      setLoading(false);
+    });
+    return () => unsubscribe();
+  }, [view, selectedThread]);
+
+  const handleCreateThread = async (e) => {
+    e.preventDefault();
+    if (!newThreadData.title.trim() || !newThreadData.content.trim() || !user) return;
+
+    await addDoc(collection(db, 'threads'), {
+      ...newThreadData,
+      forumId: selectedForum,
+      userId: user.uid,
+      displayName: user.displayName || 'Anonymous',
+      avatar: user.photoURL || '/default.png',
+      replyCount: 0,
+      timestamp: serverTimestamp()
+    });
+    setNewThreadData({ title: '', content: '' });
+    setShowCreate(false);
+  };
+
+  const handleCreateReply = async (e) => {
+    e.preventDefault();
+    if (!newReplyContent.trim() || !user) return;
+    
+    const threadRef = doc(db, 'threads', selectedThread.id);
+    const repliesColRef = collection(threadRef, 'replies');
+
+    await addDoc(repliesColRef, {
+      content: newReplyContent,
+      userId: user.uid,
+      displayName: user.displayName,
+      avatar: user.photoURL || '/default.png',
+      timestamp: serverTimestamp()
+    });
+
+    await runTransaction(db, async (transaction) => {
+      const threadDoc = await transaction.get(threadRef);
+      // Fixed the no-throw-literal warning
+      if (!threadDoc.exists()) throw new Error("Thread does not exist!");
+      const newReplyCount = (threadDoc.data().replyCount || 0) + 1;
+      transaction.update(threadRef, { replyCount: newReplyCount });
+    });
+
+    setNewReplyContent('');
+  };
+  
+  const renderContent = () => {
+    if (view === 'thread') {
+      return (
+        <div>
+          <button onClick={() => setView('forum')} className="back-button">&larr; Back to {forums[selectedForum]?.name}</button>
+          <div className="thread-header">
+            <h1>{selectedThread.title}</h1>
+          </div>
+
+          <div className="post-container">
+            <div className="post-header">
+              <img src={selectedThread.avatar} alt="avatar" className="post-avatar"/>
+              <span className="post-author">{selectedThread.displayName}</span>
+            </div>
+            <p className="post-content">{selectedThread.content}</p>
+          </div>
+
+          <h3>Replies</h3>
+          {loading ? <p>Loading replies...</p> : replies.map(reply => (
+            <div key={reply.id} className="post-container">
+              <div className="post-header">
+                <img src={reply.avatar} alt="avatar" className="post-avatar"/>
+                <span className="post-author">{reply.displayName}</span>
               </div>
-              {/* Follow Button */}
-              <button className="ml-auto bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-md text-sm font-medium">
-                Follow
-              </button>
+              <p className="post-content">{reply.content}</p>
             </div>
           ))}
-        </section>
+
+          <form onSubmit={handleCreateReply} className="reply-form">
+            <h4>Leave a Reply</h4>
+            <textarea 
+              value={newReplyContent}
+              onChange={(e) => setNewReplyContent(e.target.value)}
+              placeholder="Write your reply here..."
+            />
+            <button type="submit">Submit Reply</button>
+          </form>
+        </div>
+      );
+    }
+    
+    if (view === 'forum') {
+      return (
+        <div>
+          <button onClick={() => setView('index')} className="back-button">&larr; Back to Forums</button>
+          <h2 className="forum-header">{forums[selectedForum]?.name}</h2>
+          <button onClick={() => setShowCreate(!showCreate)} className="new-thread-button">
+            {showCreate ? 'Cancel' : 'Create New Thread'}
+          </button>
+          
+          {showCreate && (
+            <form onSubmit={handleCreateThread} className="post-form">
+              <input type="text" placeholder="Thread Title" value={newThreadData.title} onChange={(e) => setNewThreadData({ ...newThreadData, title: e.target.value })} required />
+              <textarea placeholder="What's on your mind?" value={newThreadData.content} onChange={(e) => setNewThreadData({ ...newThreadData, content: e.target.value })} required />
+              <button type="submit">Post Thread</button>
+            </form>
+          )}
+
+          {loading ? <p>Loading threads...</p> : threads.map(thread => (
+            <div key={thread.id} className="thread-item" onClick={() => setSelectedThread(thread) & setView('thread')}>
+              <div className="thread-details">
+                <h3>{thread.title}</h3>
+                <p>by {thread.displayName} &bull; {thread.replyCount || 0} replies</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    return (
+      <div className="forum-grid">
+        {Object.entries(forums).map(([id, { name, description }]) => (
+          <div key={id} className="forum-category">
+            <h2 className="category-title">{name}</h2>
+            <div className="forum-item" onClick={() => setSelectedForum(id) & setView('forum')}>
+              {/* Fixed the accessible-emoji warning */}
+              <span role="img" aria-label="chat bubble" className="forum-icon">💬</span>
+              <div className="forum-details">
+                <h3>{name}</h3>
+                <p>{description}</p>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  return (
+    <div className="min-h-screen">
+      <Navbar />
+      <main className="forum-container">
+        {renderContent()}
       </main>
     </div>
   );
