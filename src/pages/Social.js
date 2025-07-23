@@ -7,7 +7,7 @@ import '../styles/Social.css';
 
 const forums = {
   'gym': { name: 'Gym Related', description: 'Discuss workouts, nutrition, and progress.' },
-  'unrelated': { name: 'Unrelated', description: 'Talk about anything else on your mind.' }
+  'unrelated': { name: 'The Lounge', description: 'Talk about anything else on your mind.' }
 };
 
 function Social() {
