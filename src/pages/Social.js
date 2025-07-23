@@ -81,27 +81,37 @@ function Social() {
   const handleCreateReply = async (e) => {
     e.preventDefault();
     if (!newReplyContent.trim() || !user) return;
-    
+
     const threadRef = doc(db, 'threads', selectedThread.id);
     const repliesColRef = collection(threadRef, 'replies');
 
-    await addDoc(repliesColRef, {
-      content: newReplyContent,
-      userId: user.uid,
-      displayName: user.displayName,
-      avatar: user.photoURL || '/default.png',
-      timestamp: serverTimestamp()
-    });
+    try {
+      // Add the new reply document to Firestore
+      await addDoc(repliesColRef, {
+        content: newReplyContent,
+        userId: user.uid,
+        displayName: user.displayName,
+        avatar: user.photoURL || '/default.png',
+        timestamp: serverTimestamp()
+      });
 
-    await runTransaction(db, async (transaction) => {
-      const threadDoc = await transaction.get(threadRef);
-      // Fixed the no-throw-literal warning
-      if (!threadDoc.exists()) throw new Error("Thread does not exist!");
-      const newReplyCount = (threadDoc.data().replyCount || 0) + 1;
-      transaction.update(threadRef, { replyCount: newReplyCount });
-    });
+      // Update the reply count on the parent thread in a transaction
+      await runTransaction(db, async (transaction) => {
+        const threadDoc = await transaction.get(threadRef);
+        if (!threadDoc.exists()) {
+            throw new Error("Thread does not exist!");
+        }
+        const newReplyCount = (threadDoc.data().replyCount || 0) + 1;
+        transaction.update(threadRef, { replyCount: newReplyCount });
+      });
 
-    setNewReplyContent('');
+    } catch (error) {
+      console.error("Error creating reply:", error);
+      // Optionally, show an error message to the user
+    } finally {
+      // This block will always run, ensuring the input is cleared.
+      setNewReplyContent('');
+    }
   };
   
   const renderContent = () => {
