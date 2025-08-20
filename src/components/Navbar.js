@@ -1,61 +1,69 @@
-import React from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { auth } from "../firebaseConfig"; // Import auth for logout
-import { signOut } from "firebase/auth";
+import React from 'react';
+// 1. Make sure useLocation is imported
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { auth } from '../firebaseConfig';
+import { signOut } from 'firebase/auth';
+import AICoachButton from './AICoachButton';
 
-// Basic Navbar styling (add more in a separate CSS file if preferred)
+// (Your styles here)
 const navStyle = {
-  backgroundColor: '#f0f0f0',
-  padding: '10px 20px',
-  marginBottom: '20px',
-  display: 'flex',
-  justifyContent: 'space-between', // Distributes space between links and logout
-  alignItems: 'center',
-  borderBottom: '1px solid #ccc'
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '1rem 2rem',
+    backgroundColor: '#333',
+    color: 'white'
 };
 
 const linkStyle = {
-  marginRight: '15px',
-  textDecoration: 'none',
-  color: '#333',
-  fontWeight: 'bold'
+    color: 'white',
+    textDecoration: 'none',
+    margin: '0 1rem'
 };
 
 const logoutButtonStyle = {
-  padding: '5px 10px',
-  cursor: 'pointer',
-  backgroundColor: '#ff5c5c',
-  color: 'white',
-  border: 'none',
-  borderRadius: '4px'
+    padding: '0.5rem 1rem',
+    backgroundColor: '#f44336',
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    cursor: 'pointer'
 };
 
 
 function Navbar() {
   const navigate = useNavigate();
+  // 2. Get the pathname directly from useLocation() to avoid the name conflict
+  const { pathname } = useLocation();
 
   const handleLogout = async () => {
     try {
       await signOut(auth);
-      navigate("/login"); // Redirect to login after logout
+      navigate('/login');
     } catch (error) {
-      console.error("Logout failed:", error);
-      alert("Logout failed. Please try again.");
+      console.error('Error signing out: ', error);
     }
   };
 
+  // 3. Use the new 'pathname' variable for your condition
+  const showAICoachButton = pathname !== '/profile';
+
   return (
-    <nav style={navStyle}>
-      <div> {/* Group navigation links */}
-        <Link to="/dashboard" style={linkStyle}>Dashboard</Link>
-        <Link to="/stats" style={linkStyle}>Statistics</Link>
-        <Link to="/social" style={linkStyle}>Social</Link>
-        <Link to="/profile" style={linkStyle}>Profile</Link>
-      </div>
-      <div> {/* Logout button on the right */}
-         <button onClick={handleLogout} style={logoutButtonStyle}>Logout</button>
-      </div>
-    </nav>
+    <>
+      <nav style={navStyle}>
+        <div>
+          <Link to="/dashboard" style={linkStyle}>Dashboard</Link>
+          <Link to="/stats" style={linkStyle}>Statistics</Link>
+          <Link to="/social" style={linkStyle}>Social</Link>
+          <Link to="/profile" style={linkStyle}>Profile</Link>
+        </div>
+        <div>
+          <button onClick={handleLogout} style={logoutButtonStyle}>Logout</button>
+        </div>
+      </nav>
+      {/* This will now work without errors */}
+      {showAICoachButton && <AICoachButton />}
+    </>
   );
 }
 
